@@ -2,10 +2,8 @@ use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::io;
-use std::path;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process;
 use std::process::Command;
 
 use base64::Engine;
@@ -27,23 +25,6 @@ trait GetText {
 impl<'tree> GetText for Node<'tree> {
     fn text<'a>(&self, source: &'a str) -> &'a str {
         return &source[self.start_byte()..self.end_byte()];
-    }
-}
-
-#[derive(Debug)]
-struct NodeData {
-    start_byte: usize,
-    end_byte: usize,
-    text: String,
-}
-
-impl NodeData {
-    fn from_node(node: Node<'_>, source: &str) -> Self {
-        NodeData {
-            start_byte: node.start_byte(),
-            end_byte: node.end_byte(),
-            text: node.text(source).to_string(),
-        }
     }
 }
 
