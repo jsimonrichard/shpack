@@ -35,7 +35,7 @@ fn main() -> Result<()> {
     let matches = command!()
         .arg(arg!(<FILE>).value_parser(value_parser!(PathBuf)))
         .arg(
-            arg!(-d --dir <DIR>)
+            arg!(-d --dir <DIR> "The working directory for the bundler, defaults to the current working directory")
                 .required(false)
                 .value_parser(value_parser!(PathBuf)),
         )
