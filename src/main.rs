@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::io;
+use std::path;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
@@ -51,9 +52,10 @@ fn main() -> Result<()> {
     if let Some(path_string) = matches.get_one::<PathBuf>("FILE") {
         source = fs::read_to_string(path_string)?;
         cwd = if let Some(dir) = matches.get_one::<PathBuf>("dir") {
-            dir.to_owned()
+            dir.to_owned().canonicalize()?
         } else {
             PathBuf::from(path_string)
+                .canonicalize()?
                 .parent()
                 .expect("file path should have parent")
                 .to_owned()
@@ -61,9 +63,9 @@ fn main() -> Result<()> {
     } else {
         source = io::read_to_string(io::stdin())?;
         cwd = if let Some(dir) = matches.get_one::<PathBuf>("dir") {
-            dir.to_owned()
+            dir.to_owned().canonicalize()?
         } else {
-            env::current_dir()?.to_owned()
+            env::current_dir()?.to_owned().canonicalize()?
         };
     };
 
@@ -72,6 +74,7 @@ fn main() -> Result<()> {
     if let Some(out_path) = matches.get_one::<PathBuf>("out") {
         fs::create_dir_all(
             out_path
+                .canonicalize()?
                 .parent()
                 .ok_or(eyre!("Can't save to root directory :("))?,
         )?;
@@ -115,11 +118,12 @@ struct Bundler {
 }
 
 impl Bundler {
+    /// Creates a new Bundler instance. relative_to must be a canonical path.
     fn new(relative_to: &Path) -> Self {
         Bundler {
             path_relative_to: relative_to
                 .canonicalize()
-                .expect("cwd can't be canonicalized!"),
+                .expect("relative_to arg can't be canonicalized!"),
             shabang: Default::default(),
             visiting: vec![],
             visited: HashSet::new(),
@@ -127,6 +131,7 @@ impl Bundler {
     }
 
     // Must consume self since the data managed by Bundler must be reset after each bundle
+    /// Bundles the given source code. cwd must be a canonical path.
     fn bundle(mut self, source: String, cwd: &Path) -> Result<String> {
         let out = (&mut self)._bundle_from_string(source, cwd)?;
         let shabang = self.shabang.ok_or(eyre!("Shabang is missing"))?;
@@ -216,6 +221,10 @@ impl Bundler {
                                 _ => None,
                             })
                             .ok_or(eyre!("source command missing its argument"))?;
+
+                        if path_str.starts_with("$") {
+                            return Ok(());
+                        }
 
                         let path = cwd.join(&path_str).canonicalize().wrap_err_with(|| {
                             format!("failed to get full path for source: \"{}\"", path_str)
